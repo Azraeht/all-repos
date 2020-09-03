@@ -53,15 +53,17 @@ def filter_repos_from_settings(
     return filter_repos(
         repos,
         archived=settings.archived,
+        path_with_namespace=settings.path_with_namespace
     )
 
 
 def filter_repos(
         repos: List[Dict[str, Any]], *,
         archived: bool,
+        path_with_namespace: bool
 ) -> Dict[str, str]:
     return {
-        repo['path_with_namespace']: repo['ssh_url_to_repo']
+        repo['path_with_namespace'] if path_with_namespace else repo['name']: repo['ssh_url_to_repo']
         for repo in repos
         if (
             archived or not repo['archived']

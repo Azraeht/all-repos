@@ -12,6 +12,7 @@ class Settings(NamedTuple):
     # forks: bool = False
     # private: bool = False
     archived: bool = False
+    path_with_namespace: bool = True
 
 
 LIST_REPOS_URL = (

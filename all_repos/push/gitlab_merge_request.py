@@ -1,5 +1,6 @@
 import json
 import subprocess
+import urllib
 from typing import NamedTuple
 
 from all_repos import autofix_lib
@@ -15,11 +16,26 @@ class Settings(NamedTuple):
 # https://gitlab.com/gitlab-org/gitlab-ce/issues/64320
 
 
-def push(settings: Settings, branch_name: str) -> None:
+def get_mr_url(repo_slug: str, settings: Settings) -> int:
     headers = {'Private-Token': settings.access_token}
+
+    url_slug = urllib.parse.quote(repo_slug, safe='')
+
+    resp = gitlab_api.req(
+        f'{settings.base_url}/projects/{url_slug}',
+        headers=headers, method='GET',
+    )
+    return resp.json['_links']['merge_requests']
+
+def push(settings: Settings, branch_name: str) -> None:
+    headers = {
+        'Private-Token': settings.access_token,
+        'Content-Type': 'application/json'
+        }
 
     remote_url = git.remote('.')
     _, _, repo_slug = remote_url.rpartition(':')
+    repo_slug = repo_slug.replace('.git', '')
 
     if settings.fork:
         raise NotImplementedError('fork support  not yet implemented')
@@ -34,15 +50,15 @@ def push(settings: Settings, branch_name: str) -> None:
 
     data = json.dumps({
         'title': title.decode().strip(),
-        'body': body.decode().strip(),
-        'base': autofix_lib.target_branch(),
-        'head': head,
+        'description': body.decode().strip(),
+        'target_branch': autofix_lib.target_branch(),
+        'source_branch': branch_name,
     }).encode()
 
     resp = gitlab_api.req(
-        f'{settings.base_url}/{repo_slug}/pulls',
+        get_mr_url(repo_slug, settings),
         data=data, headers=headers, method='POST',
     )
 
-    url = resp.json['html_url']
+    url = resp.json['web_url']
     print(f'Pull request created at {url}')

@@ -1,6 +1,6 @@
 import json
 import subprocess
-from typing import NamedTuple
+from typing import NamedTuple, Dict
 
 from all_repos import autofix_lib
 from all_repos import git
@@ -12,6 +12,7 @@ class Settings(NamedTuple):
     username: str
     fork: bool = False
     base_url: str = 'https://api.github.com'
+    mr_bodies: Dict[str, str] = {}
 
 
 def make_pull_request(
@@ -39,12 +40,15 @@ def make_pull_request(
 
     autofix_lib.run('git', 'push', remote, f'HEAD:{branch_name}', '--quiet')
 
-    title = subprocess.check_output(('git', 'log', '-1', '--format=%s'))
-    body = subprocess.check_output(('git', 'log', '-1', '--format=%b'))
+    title = subprocess.check_output(('git', 'log', '-1', '--format=%s')).decode().strip()
+    if repo_slug in settings.mr_bodies:
+        body = settings.mr_bodies[repo_slug]
+    else:
+        body = subprocess.check_output(('git', 'log', '-1', '--format=%b')).decode().strip()
 
     data = json.dumps({
-        'title': title.decode().strip(),
-        'body': body.decode().strip(),
+        'title': title,
+        'body': body,
         'base': autofix_lib.target_branch(),
         'head': head,
     }).encode()

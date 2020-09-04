@@ -53,6 +53,11 @@ def load_config(filename: str) -> Config:
     source_module: Any = __import__(contents['source'], fromlist=['__trash'])
     source_settings = source_module.Settings(**contents['source_settings'])
     push_module: Any = __import__(contents['push'], fromlist=['__trash'])
+    # Deserialize MR bodies and store them in config, to avoid reloading them at each push
+    if "mr_bodies_json_path" in contents['push_settings']:
+        with open(contents['push_settings']['mr_bodies_json_path']) as f:
+            contents['push_settings']['mr_bodies'] = json.load(f)
+        contents['push_settings'].pop('mr_bodies_json_path')
     push_settings = push_module.Settings(**contents['push_settings'])
     include = re.compile(contents.get('include', ''))
     exclude = re.compile(contents.get('exclude', '^$'))

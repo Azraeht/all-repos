@@ -1,7 +1,7 @@
 import json
 import subprocess
 import urllib
-from typing import NamedTuple
+from typing import NamedTuple, Dict
 
 from all_repos import autofix_lib
 from all_repos import git
@@ -12,6 +12,7 @@ class Settings(NamedTuple):
     access_token: str
     base_url: str = 'https://gitlab.example.com/api/v4'
     fork: bool = False
+    mr_bodies: Dict[str, str] = {}
 
 # https://gitlab.com/gitlab-org/gitlab-ce/issues/64320
 
@@ -36,6 +37,7 @@ def push(settings: Settings, branch_name: str) -> None:
     remote_url = git.remote('.')
     _, _, repo_slug = remote_url.rpartition(':')
     repo_slug = repo_slug.replace('.git', '')
+    repo_short_name = repo_slug.split('/')[-1]
 
     if settings.fork:
         raise NotImplementedError('fork support  not yet implemented')
@@ -45,12 +47,15 @@ def push(settings: Settings, branch_name: str) -> None:
 
     autofix_lib.run('git', 'push', remote, f'HEAD:{branch_name}', '--quiet')
 
-    title = subprocess.check_output(('git', 'log', '-1', '--format=%s'))
-    body = subprocess.check_output(('git', 'log', '-1', '--format=%b'))
+    title = subprocess.check_output(('git', 'log', '-1', '--format=%s')).decode().strip()
+    if repo_short_name in settings.mr_bodies:
+        body = settings.mr_bodies[repo_short_name]
+    else:
+        body = subprocess.check_output(('git', 'log', '-1', '--format=%b')).decode().strip()
 
     data = json.dumps({
-        'title': title.decode().strip(),
-        'description': body.decode().strip(),
+        'title': title,
+        'description': body,
         'target_branch': autofix_lib.target_branch(),
         'source_branch': branch_name,
     }).encode()
